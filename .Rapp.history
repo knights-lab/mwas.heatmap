@@ -1,0 +1,319 @@
+length(x)
+source(paste(Sys.getenv("MWAS.HEATMAP"),"lib","load.data.r",sep="/"))	source(paste(Sys.getenv("MWAS.HEATMAP"),"lib","mwas.heatmap.r",sep="/"))		source(paste(Sys.getenv("MWAS.HEATMAP"),"lib","factor.to.numeric.r",sep="/"))		source(paste(Sys.getenv("MWAS.HEATMAP"),"lib","get.next.kegg.r",sep="/"))		source(paste(Sys.getenv("MWAS.HEATMAP"),"lib","filter.pathways.r",sep="/"))	#
+	otufile<-"metagenome_predictions_L3.txt"	mapfile<-"map.txt"	keep.pathways.file<-"pathways.heatmap.csv"	mapfile<- paste(Sys.getenv("MWAS.HEATMAP"),'/data/', mapfile, sep='')			otufile<- paste(Sys.getenv("MWAS.HEATMAP"),'/data/', otufile, sep='')			keep.pathways.file<-paste(Sys.getenv('MWAS.HEATMAP'),'/data/', keep.pathways.file, sep='')#
+	# read in data files		minOTUInSamples = .0001	ret <- load.data(otufile=otufile, mapfile=mapfile, minOTUInSamples=minOTUInSamples, normalize=TRUE)	otu <- ret$otu	map <- ret$map	kegg <- ret$kegg	if(length(kegg)>0){		# filter the kegg pathways and return the next level up for displaying		kegg <- filter.pathways(kegg, keep.pathways.file)		next.kegg <- get.next.kegg(kegg)		names(next.kegg) <- names(kegg)	}
+# some custom subsetting required for this data set	map <- subset(map, !is.na(Diabetes) & Location=="fecal" & Week==week[i] & Sex %in% genders & Treatment %in% treatments)	otu <- otu[rownames(map),]#
+	# form all of the clustering and color parameters	cluster.var <- c("Sex", "Treatment")	# this is a numeric, therefore colors will be shown as a gradient between the two colors here	color.list[["Diabetes.week"]] <- setNames(c('indianred1','snow3'), c("early Diabetes", "late Diabetes"))	# this is a factor, number of colors = number of values	color.list[["Sex"]] <- setNames(c('pink','lightblue'), c("Female, Male"))	# this is a factor, number of colors = number of values	color.list[["Treatment"]] <- setNames(c('antiquewhite','darkseagreen1','thistle'), c("Control", "PAT", "STAT"))
+# some custom subsetting required for this data set	map <- subset(map, !is.na(Diabetes) & Location=="fecal" & Week==6 & Sex %in% c("M") & Treatment %in% c("Control","PAT"))	otu <- otu[rownames(map),]#
+	# form all of the clustering and color parameters	cluster.var <- c("Sex", "Treatment")	# this is a numeric, therefore colors will be shown as a gradient between the two colors here	color.list[["Diabetes.week"]] <- setNames(c('indianred1','snow3'), c("early Diabetes", "late Diabetes"))	# this is a factor, number of colors = number of values	color.list[["Sex"]] <- setNames(c('pink','lightblue'), c("Female, Male"))	# this is a factor, number of colors = number of values	color.list[["Treatment"]] <- setNames(c('antiquewhite','darkseagreen1','thistle'), c("Control", "PAT", "STAT"))
+color.list <- list()	# this is a numeric, therefore colors will be shown as a gradient between the two colors here	color.list[["Diabetes.week"]] <- setNames(c('indianred1','snow3'), c("early Diabetes", "late Diabetes"))	# this is a factor, number of colors = number of values	color.list[["Sex"]] <- setNames(c('pink','lightblue'), c("Female, Male"))	# this is a factor, number of colors = number of values	color.list[["Treatment"]] <- setNames(c('antiquewhite','darkseagreen1','thistle'), c("Control", "PAT", "STAT"))
+mwas.heatmap(otu, map, cluster.var, color.var, color.list, kegg_pathways=next.kegg, heatmap.title="Diabetes", outputfile="diabetes.test.pdf")
+source(paste(Sys.getenv("MWAS.HEATMAP"),"lib","mwas.heatmap.r",sep="/"))
+mwas.heatmap(otu, map, cluster.var, color.var, color.list, kegg_pathways=next.kegg, heatmap.title="Diabetes", outputfile="diabetes.test.pdf")
+# combine cluster variable values to form groups to cluster samples by	if(length(cluster.var) > 1){		new.treatments <- apply(map[,cluster.var], 1, paste0, collapse=".")	} else {		new.treatments <- map[,cluster.var]	}	names(new.treatments) <- rownames(map)	#
+	# select features that are statistically different	ret <- test.otu.features(otu=otu[,names(kegg_pathways)], response=new.treatments)	diff.features <- ret$features		otu <- otu[,diff.features]	#
+	# use pearson's correlation for the distance function (bray-curtis has scaling issues)	distfun <- function(x) as.dist((1-cor(t(x)))/2)
+col.labels <- NULL	# separate samples by unique values of new.treatments that we're interested in clustering by	unique.new.treatments <- unique(new.treatments)	for(i in 1:length(unique.new.treatments)){		otu.by.clustergroup <- otu[names(new.treatments)==unique.new.treatments[i], ]		data.dist.group <- distfun(otu.by.clustergroup)		col.clus.group <- hclust(data.dist.group)		d <- as.dendrogram(col.clus.group)		# since the index order is per group only, we'll have to add the current length each time 		# to get correct indices along the combined dendrogram		col.labels <- c(col.labels, labels(d))	}
+i
+unique.new.treatments
+otu.by.clustergroup
+names(new.treatments)==unique.new.treatments[i]
+new.treatments
+otu.by.clustergroup <- otu[new.treatments==unique.new.treatments[i], ]
+otu.by.clustergroup
+otu
+diff.features
+kegg_pathways
+kegg_pathways=next.kegg; heatmap.title="Diabetes"; outputfile="diabetes.test.pdf"
+# combine cluster variable values to form groups to cluster samples by	if(length(cluster.var) > 1){		new.treatments <- apply(map[,cluster.var], 1, paste0, collapse=".")	} else {		new.treatments <- map[,cluster.var]	}	names(new.treatments) <- rownames(map)	#
+	# select features that are statistically different	ret <- test.otu.features(otu=otu[,names(kegg_pathways)], response=new.treatments)	diff.features <- ret$features		otu <- otu[,diff.features]	#
+	# use pearson's correlation for the distance function (bray-curtis has scaling issues)	distfun <- function(x) as.dist((1-cor(t(x)))/2)#
+	# do row and column clustering	col.labels <- cluster.columns(otu=otu, distfun=distfun, new.treatments=new.treatments)	ret <- cluster.rows(otu=as.matrix(t(otu))[,col.labels], distfun=distfun)	row.dendrogram <- ret$ddr 	row.labels <- ret$row.labels
+kegg_pathways
+otu[,names(kegg_pathways)]
+names(kegg_pathways)
+colnames(otu)
+otu
+ret <- load.data(otufile=otufile, mapfile=mapfile, minOTUInSamples=minOTUInSamples, normalize=TRUE)	otu <- ret$otu
+otu
+map <- subset(map, !is.na(Diabetes) & Location=="fecal" & Week==6 & Sex %in% c("M") & Treatment %in% c("Control","PAT"))	otu <- otu[rownames(map),]
+otu
+if(length(cluster.var) > 1){		new.treatments <- apply(map[,cluster.var], 1, paste0, collapse=".")	} else {		new.treatments <- map[,cluster.var]	}	names(new.treatments) <- rownames(map)	#
+	# select features that are statistically different	ret <- test.otu.features(otu=otu[,names(kegg_pathways)], response=new.treatments)	diff.features <- ret$features		otu <- otu[,diff.features]	#
+	# use pearson's correlation for the distance function (bray-curtis has scaling issues)	distfun <- function(x) as.dist((1-cor(t(x)))/2)#
+	# do row and column clustering	col.labels <- cluster.columns(otu=otu, distfun=distfun, new.treatments=new.treatments)	ret <- cluster.rows(otu=as.matrix(t(otu))[,col.labels], distfun=distfun)	row.dendrogram <- ret$ddr 	row.labels <- ret$row.labels
+source(paste(Sys.getenv("MWAS.HEATMAP"),"lib","load.data.r",sep="/"))	source(paste(Sys.getenv("MWAS.HEATMAP"),"lib","mwas.heatmap.r",sep="/"))		source(paste(Sys.getenv("MWAS.HEATMAP"),"lib","factor.to.numeric.r",sep="/"))		source(paste(Sys.getenv("MWAS.HEATMAP"),"lib","get.next.kegg.r",sep="/"))		source(paste(Sys.getenv("MWAS.HEATMAP"),"lib","filter.pathways.r",sep="/"))
+otufile<-"metagenome_predictions_L3.txt"	mapfile<-"map.txt"	keep.pathways.file<-"pathways.heatmap.csv"	mapfile<- paste(Sys.getenv("MWAS.HEATMAP"),'/data/', mapfile, sep='')			otufile<- paste(Sys.getenv("MWAS.HEATMAP"),'/data/', otufile, sep='')			keep.pathways.file<-paste(Sys.getenv('MWAS.HEATMAP'),'/data/', keep.pathways.file, sep='')#
+	# read in data files		minOTUInSamples = .0001	ret <- load.data(otufile=otufile, mapfile=mapfile, minOTUInSamples=minOTUInSamples, normalize=TRUE)	otu <- ret$otu	map <- ret$map	kegg <- ret$kegg	if(length(kegg)>0){		# filter the kegg pathways and return the next level up for displaying		kegg <- filter.pathways(kegg, keep.pathways.file)		next.kegg <- get.next.kegg(kegg)		names(next.kegg) <- names(kegg)	}#
+	# some custom subsetting required for this data set	map <- subset(map, !is.na(Diabetes) & Location=="fecal" & Week==6 & Sex %in% c("M") & Treatment %in% c("Control","PAT"))	otu <- otu[rownames(map),]#
+	# form all of the clustering and color parameters	cluster.var <- c("Sex", "Treatment")	color.list <- list()	# this is a numeric, therefore colors will be shown as a gradient between the two colors here	color.list[["Diabetes.week"]] <- setNames(c('indianred1','snow3'), c("early Diabetes", "late Diabetes"))	# this is a factor, number of colors = number of values	color.list[["Sex"]] <- setNames(c('pink','lightblue'), c("Female, Male"))	# this is a factor, number of colors = number of values	color.list[["Treatment"]] <- setNames(c('antiquewhite','darkseagreen1','thistle'), c("Control", "PAT", "STAT"))
+mwas.heatmap(otu, map, cluster.var, color.var, color.list, kegg_pathways=next.kegg, heatmap.title="Diabetes", outputfile="diabetes.test.pdf")
+mwas.heatmap(otu, map, cluster.var, color.var=names(color.list), color.list, kegg_pathways=next.kegg, heatmap.title="Diabetes", outputfile="diabetes.test.pdf")
+names(color.list)
+color.var=names(color.list); kegg_pathways=next.kegg; heatmap.title="Diabetes"; outputfile="diabetes.test.pdf"
+# combine cluster variable values to form groups to cluster samples by	if(length(cluster.var) > 1){		new.treatments <- apply(map[,cluster.var], 1, paste0, collapse=".")	} else {		new.treatments <- map[,cluster.var]	}	names(new.treatments) <- rownames(map)	#
+	# select features that are statistically different	ret <- test.otu.features(otu=otu[,names(kegg_pathways)], response=new.treatments)	diff.features <- ret$features		otu <- otu[,diff.features]	#
+	# use pearson's correlation for the distance function (bray-curtis has scaling issues)	distfun <- function(x) as.dist((1-cor(t(x)))/2)#
+	# do row and column clustering	col.labels <- cluster.columns(otu=otu, distfun=distfun, new.treatments=new.treatments)	ret <- cluster.rows(otu=as.matrix(t(otu))[,col.labels], distfun=distfun)	row.dendrogram <- ret$ddr 	row.labels <- ret$row.labels
+col.colors <- create.color.bars(map[col.labels,], color.var, color.list)	# color row axis labels according to KEGG	kegg <- kegg_pathways[row.labels]	lookup <- c("orange","firebrick3","aquamarine3","steelblue3","black", "mediumpurple3")	names(lookup) <- sort(unique(kegg))	lookup["Metabolism of Other Amino Acids"] <- lookup["Amino Acid Metabolism"] 	kegg.colors <- lookup[factor(kegg)] 	names(kegg.colors) <- names(kegg) #change these names so it's easier to reference later
+col.colors <- NULL	for(i in 1:length(color.var))	{		reordered <- map[,color.var[i]] 		if(is.numeric(class(reordered))){			color.palette <- colorRampPalette(color.list[[i]])			num.breaks <- 20 #? for gradients			colors <- color.palette(num.breaks)[as.numeric(cut(diabetes.reordered,breaks = num.breaks))]		} else if (is.factor(class(reordered))){				x <- reordered				lookup <- color.list[[i]]				colors <- lookup[reordered]		}		col.colors <- cbind(col.colors, colors)			}	names(col.colors) <- color.var
+color.var
+i
+reordered <- map[,color.var[i]]
+map
+map[,color.var[i]]
+color.var[i]
+# this is a numeric, therefore colors will be shown as a gradient between the two colors here	color.list[["Diabetes_week"]] <- setNames(c('indianred1','snow3'), c("early Diabetes", "late Diabetes"))	# this is a factor, number of colors = number of values	color.list[["Sex"]] <- setNames(c('pink','lightblue'), c("Female, Male"))	# this is a factor, number of colors = number of values	color.list[["Treatment"]] <- setNames(c('antiquewhite','darkseagreen1','thistle'), c("Control", "PAT", "STAT"))
+mwas.heatmap(otu, map, cluster.var, color.var=names(color.list), color.list, kegg_pathways=next.kegg, heatmap.title="Diabetes", outputfile="diabetes.test.pdf")
+color.var
+color.var=names(color.list)
+color.var
+color.list <- list()	# names must match columns exactly!	# this is a numeric, therefore colors will be shown as a gradient between the two colors here	color.list[["Diabetes_week"]] <- setNames(c('indianred1','snow3'), c("early Diabetes", "late Diabetes"))	# this is a factor, number of colors = number of values	color.list[["Sex"]] <- setNames(c('pink','lightblue'), c("Female, Male"))	# this is a factor, number of colors = number of values	color.list[["Treatment"]] <- setNames(c('antiquewhite','darkseagreen1','thistle'), c("Control", "PAT", "STAT"))
+mwas.heatmap(otu, map, cluster.var, color.var=names(color.list), color.list, kegg_pathways=next.kegg, heatmap.title="Diabetes", outputfile="diabetes.test.pdf")
+color.var=names(color.list)
+kegg_pathways=next.kegg
+# combine cluster variable values to form groups to cluster samples by	if(length(cluster.var) > 1){		new.treatments <- apply(map[,cluster.var], 1, paste0, collapse=".")	} else {		new.treatments <- map[,cluster.var]	}	names(new.treatments) <- rownames(map)	#
+	# select features that are statistically different	ret <- test.otu.features(otu=otu[,names(kegg_pathways)], response=new.treatments)	diff.features <- ret$features		otu <- otu[,diff.features]	#
+	# use pearson's correlation for the distance function (bray-curtis has scaling issues)	distfun <- function(x) as.dist((1-cor(t(x)))/2)#
+	# do row and column clustering	col.labels <- cluster.columns(otu=otu, distfun=distfun, new.treatments=new.treatments)	ret <- cluster.rows(otu=as.matrix(t(otu))[,col.labels], distfun=distfun)	row.dendrogram <- ret$ddr 	row.labels <- ret$row.labels#
+	# create each of the colored bars and reordered to previous column clustering	col.colors <- create.color.bars(map[col.labels,], color.var, color.list)	# color row axis labels according to KEGG	kegg <- kegg_pathways[row.labels]	lookup <- c("orange","firebrick3","aquamarine3","steelblue3","black", "mediumpurple3")	names(lookup) <- sort(unique(kegg))	lookup["Metabolism of Other Amino Acids"] <- lookup["Amino Acid Metabolism"] 	kegg.colors <- lookup[factor(kegg)] 	names(kegg.colors) <- names(kegg) #change these names so it's easier to reference later#
+	# do all formatting here	pdf(file=outputfile)	lwid = c(1.9,9,4) #col widths	lhei = c(1.1,.6,5.5,1.6) #row heights	lmat = rbind(c(3,4,0), c(0,1,0), c(0,2,0), c(0,5,0))	hm.colors <- colorRampPalette(c("blue","black","yellow"))(27)	main <- heatmap.title	# standardize each feature so it stands out more			otu <- apply(otu, 2, function(x) (x-mean(x))/sd(x))
+heatmap.3(as.matrix(t(otu))[,col.labels], Rowv = row.dendrogram, Colv = NA, dendrogram='none',	col = hm.colors, ColSideColors = col.colors, trace = "none", density.info = "none", rowAxisColors=kegg.colors,	main = main, key=TRUE, keysize=5, lmat=lmat, lwid=lwid, lhei=lhei, labCol=NA, 	margins=c(3.5,7),cexCol=.7, scale="none"	)
+col.colors
+otufile<-"metagenome_predictions_L3.txt"	mapfile<-"map.txt"	keep.pathways.file<-"pathways.heatmap.csv"	mapfile<- paste(Sys.getenv("MWAS.HEATMAP"),'/data/', mapfile, sep='')			otufile<- paste(Sys.getenv("MWAS.HEATMAP"),'/data/', otufile, sep='')			keep.pathways.file<-paste(Sys.getenv('MWAS.HEATMAP'),'/data/', keep.pathways.file, sep='')#
+	# read in data files		minOTUInSamples = .0001	ret <- load.data(otufile=otufile, mapfile=mapfile, minOTUInSamples=minOTUInSamples, normalize=TRUE)	otu <- ret$otu	map <- ret$map	kegg <- ret$kegg	if(length(kegg)>0){		# filter the kegg pathways and return the next level up for displaying		kegg <- filter.pathways(kegg, keep.pathways.file)		next.kegg <- get.next.kegg(kegg)		names(next.kegg) <- names(kegg)	}#
+	# some custom subsetting required for this data set	map <- subset(map, !is.na(Diabetes) & Location=="fecal" & Week==6 & Sex %in% c("M") & Treatment %in% c("Control","PAT"))	otu <- otu[rownames(map),]#
+	# form all of the clustering and color parameters	cluster.var <- c("Sex", "Treatment")	color.list <- list()	# names must match columns exactly!	# this is a numeric, therefore colors will be shown as a gradient between the two colors here	color.list[["Diabetes_week"]] <- setNames(c('indianred1','snow3'), c("early Diabetes", "late Diabetes"))	# this is a factor, number of colors = number of values	color.list[["Sex"]] <- setNames(c('pink','lightblue'), c("Female, Male"))	# this is a factor, number of colors = number of values	color.list[["Treatment"]] <- setNames(c('antiquewhite','darkseagreen1','thistle'), c("Control", "PAT", "STAT"))
+color.var=names(color.list)
+kegg_pathways=next.kegg
+# combine cluster variable values to form groups to cluster samples by	if(length(cluster.var) > 1){		new.treatments <- apply(map[,cluster.var], 1, paste0, collapse=".")	} else {		new.treatments <- map[,cluster.var]	}	names(new.treatments) <- rownames(map)	#
+	# select features that are statistically different	ret <- test.otu.features(otu=otu[,names(kegg_pathways)], response=new.treatments)	diff.features <- ret$features		otu <- otu[,diff.features]	#
+	# use pearson's correlation for the distance function (bray-curtis has scaling issues)	distfun <- function(x) as.dist((1-cor(t(x)))/2)#
+	# do row and column clustering	col.labels <- cluster.columns(otu=otu, distfun=distfun, new.treatments=new.treatments)	ret <- cluster.rows(otu=as.matrix(t(otu))[,col.labels], distfun=distfun)	row.dendrogram <- ret$ddr 	row.labels <- ret$row.labels#
+	# create each of the colored bars and reordered to previous column clustering	col.colors <- create.color.bars(map[col.labels,], color.var, color.list)	# color row axis labels according to KEGG	kegg <- kegg_pathways[row.labels]	lookup <- c("orange","firebrick3","aquamarine3","steelblue3","black", "mediumpurple3")	names(lookup) <- sort(unique(kegg))	lookup["Metabolism of Other Amino Acids"] <- lookup["Amino Acid Metabolism"] 	kegg.colors <- lookup[factor(kegg)] 	names(kegg.colors) <- names(kegg) #change these names so it's easier to reference later#
+	# do all formatting here	pdf(file=outputfile)	lwid = c(1.9,9,4) #col widths	lhei = c(1.1,.6,5.5,1.6) #row heights	lmat = rbind(c(3,4,0), c(0,1,0), c(0,2,0), c(0,5,0))	hm.colors <- colorRampPalette(c("blue","black","yellow"))(27)	main <- heatmap.title	# standardize each feature so it stands out more			otu <- apply(otu, 2, function(x) (x-mean(x))/sd(x))
+col.colors
+color.var
+color.list
+color.list <- list()	# names must match columns exactly!	# this is a numeric, therefore colors will be shown as a gradient between the two colors here	color.list[["Diabetes_week"]] <- setNames(c('indianred1','snow3'), c("early Diabetes", "late Diabetes"))	# this is a factor, number of colors = number of values	color.list[["Sex"]] <- setNames(c('pink','lightblue'), c("Female","Male"))	# this is a factor, number of colors = number of values	color.list[["Treatment"]] <- setNames(c('antiquewhite','darkseagreen1','thistle'), c("Control", "PAT", "STAT"))
+col.colors <- create.color.bars(map[col.labels,], color.var, color.list)
+col.colors
+map <- map[col.labels,]
+col.colors <- NULL
+i=1
+reordered <- map[,color.var[i]]
+reordered
+is.numeric(reordered)
+source(paste(Sys.getenv("MWAS.HEATMAP"),"lib","mwas.heatmap.r",sep="/"))
+source(paste(Sys.getenv("MWAS.HEATMAP"),"lib","load.data.r",sep="/"))	source(paste(Sys.getenv("MWAS.HEATMAP"),"lib","mwas.heatmap.r",sep="/"))		source(paste(Sys.getenv("MWAS.HEATMAP"),"lib","factor.to.numeric.r",sep="/"))		source(paste(Sys.getenv("MWAS.HEATMAP"),"lib","get.next.kegg.r",sep="/"))		source(paste(Sys.getenv("MWAS.HEATMAP"),"lib","filter.pathways.r",sep="/"))	#
+	otufile<-"metagenome_predictions_L3.txt"	mapfile<-"map.txt"	keep.pathways.file<-"pathways.heatmap.csv"	mapfile<- paste(Sys.getenv("MWAS.HEATMAP"),'/data/', mapfile, sep='')			otufile<- paste(Sys.getenv("MWAS.HEATMAP"),'/data/', otufile, sep='')			keep.pathways.file<-paste(Sys.getenv('MWAS.HEATMAP'),'/data/', keep.pathways.file, sep='')#
+	# read in data files		minOTUInSamples = .0001	ret <- load.data(otufile=otufile, mapfile=mapfile, minOTUInSamples=minOTUInSamples, normalize=TRUE)	otu <- ret$otu	map <- ret$map	kegg <- ret$kegg	if(length(kegg)>0){		# filter the kegg pathways and return the next level up for displaying		kegg <- filter.pathways(kegg, keep.pathways.file)		next.kegg <- get.next.kegg(kegg)		names(next.kegg) <- names(kegg)	}#
+	# some custom subsetting required for this data set	map <- subset(map, !is.na(Diabetes) & Location=="fecal" & Week==6 & Sex %in% c("M") & Treatment %in% c("Control","PAT"))	otu <- otu[rownames(map),]#
+	# form all of the clustering and color parameters	cluster.var <- c("Sex", "Treatment")	color.list <- list()	# names must match columns exactly!	# this is a numeric, therefore colors will be shown as a gradient between the two colors here	color.list[["Diabetes_week"]] <- setNames(c('indianred1','snow3'), c("early Diabetes", "late Diabetes"))	# this is a factor, number of colors = number of values	color.list[["Sex"]] <- setNames(c('pink','lightblue'), c("Female","Male"))	# this is a factor, number of colors = number of values	color.list[["Treatment"]] <- setNames(c('antiquewhite','darkseagreen1','thistle'), c("Control", "PAT", "STAT"))	# make the heatmap
+mwas.heatmap(otu, map, cluster.var, color.var=names(color.list), color.list, kegg_pathways=next.kegg, heatmap.title="Diabetes", outputfile="diabetes.test.pdf")
+run.heatmap.diabetes()
+source("run.heatmap.r")
+run.heatmap.diabetes()
+dev.off()
+dev.off()
+dev.off()
+dev.off()
+source(paste(Sys.getenv("MWAS.HEATMAP"),"lib","load.data.r",sep="/"))	source(paste(Sys.getenv("MWAS.HEATMAP"),"lib","mwas.heatmap.r",sep="/"))		source(paste(Sys.getenv("MWAS.HEATMAP"),"lib","factor.to.numeric.r",sep="/"))		source(paste(Sys.getenv("MWAS.HEATMAP"),"lib","get.next.kegg.r",sep="/"))		source(paste(Sys.getenv("MWAS.HEATMAP"),"lib","filter.pathways.r",sep="/"))	#
+	otufile<-"metagenome_predictions_L3.txt"	mapfile<-"map.txt"	keep.pathways.file<-"pathways.heatmap.csv"	mapfile<- paste(Sys.getenv("MWAS.HEATMAP"),'/data/', mapfile, sep='')			otufile<- paste(Sys.getenv("MWAS.HEATMAP"),'/data/', otufile, sep='')			keep.pathways.file<-paste(Sys.getenv('MWAS.HEATMAP'),'/data/', keep.pathways.file, sep='')#
+	# read in data files		minOTUInSamples = .0001	ret <- load.data(otufile=otufile, mapfile=mapfile, minOTUInSamples=minOTUInSamples, normalize=TRUE)	otu <- ret$otu	map <- ret$map	kegg <- ret$kegg	if(length(kegg)>0){		# filter the kegg pathways and return the next level up for displaying		kegg <- filter.pathways(kegg, keep.pathways.file)		next.kegg <- get.next.kegg(kegg)		names(next.kegg) <- names(kegg)	}#
+	# some custom subsetting required for this data set	map <- subset(map, !is.na(Diabetes) & Location=="fecal" & Week==6 & Sex %in% c("M") & Treatment %in% c("Control","PAT"))	otu <- otu[rownames(map),]#
+	# form all of the clustering and color parameters	cluster.var <- c("Sex", "Treatment")	color.list <- list()	# names must match columns exactly!	# this is a numeric, therefore colors will be shown as a gradient between the two colors here	color.list[["Diabetes_week"]] <- setNames(c('indianred1','snow3'), c("early Diabetes", "late Diabetes"))	# this is a factor, number of colors = number of values	color.list[["Sex"]] <- setNames(c('pink','lightblue'), c("Female","Male"))	# this is a factor, number of colors = number of values	color.list[["Treatment"]] <- setNames(c('antiquewhite','darkseagreen1','thistle'), c("Control", "PAT", "STAT"))
+color.var=names(color.list)
+kegg_pathways=next.kegg,
+kegg_pathways=next.kegg
+# combine cluster variable values to form groups to cluster samples by	if(length(cluster.var) > 1){		new.treatments <- apply(map[,cluster.var], 1, paste0, collapse=".")	} else {		new.treatments <- map[,cluster.var]	}	names(new.treatments) <- rownames(map)	#
+	# select features that are statistically different	ret <- test.otu.features(otu=otu[,names(kegg_pathways)], response=new.treatments)	diff.features <- ret$features		otu <- otu[,diff.features]	#
+	# use pearson's correlation for the distance function (bray-curtis has scaling issues)	distfun <- function(x) as.dist((1-cor(t(x)))/2)#
+	# do row and column clustering	col.labels <- cluster.columns(otu=otu, distfun=distfun, new.treatments=new.treatments)	ret <- cluster.rows(otu=as.matrix(t(otu))[,col.labels], distfun=distfun)	row.dendrogram <- ret$ddr 	row.labels <- ret$row.labels#
+	# create each of the colored bars and reordered to previous column clustering	col.colors <- create.color.bars(map[col.labels,], color.var, color.list)	# color row axis labels according to KEGG	kegg <- kegg_pathways[row.labels]	lookup <- c("orange","firebrick3","aquamarine3","steelblue3","black", "mediumpurple3")	names(lookup) <- sort(unique(kegg))	lookup["Metabolism of Other Amino Acids"] <- lookup["Amino Acid Metabolism"] 	kegg.colors <- lookup[factor(kegg)] 	names(kegg.colors) <- names(kegg) #change these names so it's easier to reference later
+lwid = c(1.9,9,4) #col widths	lhei = c(1.1,.6,5.5,1.6) #row heights	lmat = rbind(c(3,4,0), c(0,1,0), c(0,2,0), c(0,5,0))	hm.colors <- colorRampPalette(c("blue","black","yellow"))(27)	main <- heatmap.title	# standardize each feature so it stands out more			otu <- apply(otu, 2, function(x) (x-mean(x))/sd(x))#
+	# make the heatmap	heatmap.3(as.matrix(t(otu))[,col.labels], Rowv = row.dendrogram, Colv = NA, dendrogram='none',	col = hm.colors, ColSideColors = col.colors, trace = "none", density.info = "none", rowAxisColors=kegg.colors,	main = main, key=TRUE, keysize=5, lmat=lmat, lwid=lwid, lhei=lhei, labCol=NA, 	margins=c(3.5,7),cexCol=.7, scale="none"	)
+# add the legend for the colored bars	legend(x=.58, y=1.01,legend=unname(unlist(lapply(color.list, names))), 	fill=unlist(color.list),border=FALSE, bty="n", y.intersp = 0.8, cex=0.7, ncol=3, text.width = strwidth("1,000"))	# add the legend for the row axis colors	legend(x=.58, y=.1425,legend=names(lookup), 	fill=lookup, border=FALSE, bty="n", y.intersp = 0.8, cex=0.7, text.col="dimgray")
+col.colors
+source("run.heatmap.r")
+run.heatmap.diabetes()
+setwd("/Users/pvangay/Documents/UMN/Knights Lab/Diabetes-Mice/mwas.heatmap/data")
+source("run.heatmap.r")
+source("run.heatmap.r")
+run.heatmap.doucs()
+source("run.heatmap.r")
+run.heatmap.doucs()
+source(paste(Sys.getenv("MWAS.HEATMAP"),"lib","load.data.r",sep="/"))	source(paste(Sys.getenv("MWAS.HEATMAP"),"lib","mwas.heatmap.r",sep="/"))		source(paste(Sys.getenv("MWAS.HEATMAP"),"lib","factor.to.numeric.r",sep="/"))		source(paste(Sys.getenv("MWAS.HEATMAP"),"lib","get.next.kegg.r",sep="/"))		source(paste(Sys.getenv("MWAS.HEATMAP"),"lib","filter.pathways.r",sep="/"))	#
+	otufile<-"doucs.metagenome.txt"	mapfile<-"doucs.map.txt"	keep.pathways.file<-"doucs.pathways.heatmap.csv"	mapfile<- paste(Sys.getenv("MWAS.HEATMAP"),'/data/', mapfile, sep='')			otufile<- paste(Sys.getenv("MWAS.HEATMAP"),'/data/', otufile, sep='')			keep.pathways.file<-paste(Sys.getenv('MWAS.HEATMAP'),'/data/', keep.pathways.file, sep='')#
+	# read in data files		minOTUInSamples = .0001	ret <- load.data(otufile=otufile, mapfile=mapfile, minOTUInSamples=minOTUInSamples, normalize=TRUE)	otu <- ret$otu	map <- ret$map	kegg <- ret$kegg	if(length(kegg)>0){		# filter the kegg pathways and return the next level up for displaying		kegg <- filter.pathways(kegg, keep.pathways.file)		next.kegg <- get.next.kegg(kegg)		names(next.kegg) <- names(kegg)	}#
+	# some custom subsetting required for this data set#	map <- subset(map, !is.na(Diabetes) & Location=="fecal" & Week==6 & Sex %in% c("M") & Treatment %in% c("Control","PAT"))	otu <- otu[rownames(map),]#
+	# form all of the clustering and color parameters	cluster.var <- c("CaptiveWild")	color.list <- list()	# names must match columns exactly!	# this is a numeric, therefore colors will be shown as a gradient between the two colors here	color.list[["CaptiveWild"]] <- setNames(c('springgreen4','orange', 'firebrick1'), c("Wild", "Semi-Captive", "Captive"))	# this is a factor, number of colors = number of values	color.list[["Sex"]] <- setNames(c('pink','lightblue', 'gray'), c("Female","Male", "Unknown"))	# this is a factor, number of colors = number of values	color.list[["Population"]] <- setNames(c('antiquewhite','darkseagreen1','thistle','skyblue', 'khaki1','slategray2','palevioletred1'), 	c("EPRC", "Singapore Zoo", "Philadelphia Zoo", "UNKG",		"Right Scar Group",		"Left Scar Group",		"Long face group"		))
+color.var=names(color.list)
+kegg_pathways=next.kegg
+# combine cluster variable values to form groups to cluster samples by	if(length(cluster.var) > 1){		new.treatments <- apply(map[,cluster.var], 1, paste0, collapse=".")	} else {		new.treatments <- map[,cluster.var]	}	names(new.treatments) <- rownames(map)	#
+	# select features that are statistically different	ret <- test.otu.features(otu=otu[,names(kegg_pathways)], response=new.treatments)	diff.features <- ret$features		otu <- otu[,diff.features]	#
+	# use pearson's correlation for the distance function (bray-curtis has scaling issues)	distfun <- function(x) as.dist((1-cor(t(x)))/2)#
+	# do row and column clustering	col.labels <- cluster.columns(otu=otu, distfun=distfun, new.treatments=new.treatments)	ret <- cluster.rows(otu=as.matrix(t(otu))[,col.labels], distfun=distfun)	row.dendrogram <- ret$ddr 	row.labels <- ret$row.labels#
+	# create each of the colored bars and reordered to previous column clustering	col.colors <- create.color.bars(map[col.labels,], color.var, color.list)	# color row axis labels according to KEGG	kegg <- kegg_pathways[row.labels]	lookup <- c("orange","firebrick3","aquamarine3","steelblue3","black", "mediumpurple3")	names(lookup) <- sort(unique(kegg))#	lookup["Metabolism of Other Amino Acids"] <- lookup["Amino Acid Metabolism"] 	kegg.colors <- lookup[factor(kegg)] 	names(kegg.colors) <- names(kegg) #change these names so it's easier to reference later
+lwid = c(1.9,9,4) #col widths	lhei = c(1.1,.6,5.5,1.6) #row heights	lmat = rbind(c(3,4,0), c(0,1,0), c(0,2,0), c(0,5,0))	hm.colors <- colorRampPalette(c("blue","black","yellow"))(27)	main <- heatmap.title	# standardize each feature so it stands out more			otu <- apply(otu, 2, function(x) (x-mean(x))/sd(x))#
+	# make the heatmap	heatmap.3(as.matrix(t(otu))[,col.labels], Rowv = row.dendrogram, Colv = NA, dendrogram='none',	col = hm.colors, ColSideColors = col.colors, trace = "none", density.info = "none", rowAxisColors=kegg.colors,	main = main, key=TRUE, keysize=5, lmat=lmat, lwid=lwid, lhei=lhei, labCol=NA, 	margins=c(3.5,7),cexCol=.7, scale="none"	)
+color.list <- list()	# names must match columns exactly!	# this is a numeric, therefore colors will be shown as a gradient between the two colors here	color.list[["CaptiveWild"]] <- setNames(c('springgreen4','orange', 'firebrick1'), c("Wild", "Semi-Captive", "Captive"))	# this is a factor, number of colors = number of values	color.list[["Sex"]] <- setNames(c('pink','lightblue', 'gray'), c("Female","Male", "Unknown"))	# this is a factor, number of colors = number of values	color.list[["Population"]] <- setNames(c('antiquewhite','darkseagreen1','thistle','skyblue', 'khaki1','slategray2','palevioletred1'), 	c("EPRC", "Singapore Zoo", "Philadelphia Zoo", "UNKG",		"Right Scar Group",		"Left Scar Group",		"Long face group"		))
+color.var=names(color.list)
+distfun <- function(x) as.dist((1-cor(t(x)))/2)#
+	# do row and column clustering	col.labels <- cluster.columns(otu=otu, distfun=distfun, new.treatments=new.treatments)	ret <- cluster.rows(otu=as.matrix(t(otu))[,col.labels], distfun=distfun)	row.dendrogram <- ret$ddr 	row.labels <- ret$row.labels#
+	# create each of the colored bars and reordered to previous column clustering	col.colors <- create.color.bars(map[col.labels,], color.var, color.list)	# color row axis labels according to KEGG	kegg <- kegg_pathways[row.labels]	lookup <- c("orange","firebrick3","aquamarine3","steelblue3","black", "mediumpurple3")	names(lookup) <- sort(unique(kegg))#	lookup["Metabolism of Other Amino Acids"] <- lookup["Amino Acid Metabolism"] 	kegg.colors <- lookup[factor(kegg)] 	names(kegg.colors) <- names(kegg) #change these names so it's easier to reference later
+lwid = c(1.9,9,4) #col widths	lhei = c(1.1,.6,5.5,1.6) #row heights	lmat = rbind(c(3,4,0), c(0,1,0), c(0,2,0), c(0,5,0))	hm.colors <- colorRampPalette(c("blue","black","yellow"))(27)	main <- heatmap.title	# standardize each feature so it stands out more			otu <- apply(otu, 2, function(x) (x-mean(x))/sd(x))#
+	# make the heatmap	heatmap.3(as.matrix(t(otu))[,col.labels], Rowv = row.dendrogram, Colv = NA, dendrogram='none',	col = hm.colors, ColSideColors = col.colors, trace = "none", density.info = "none", rowAxisColors=kegg.colors,	main = main, key=TRUE, keysize=5, lmat=lmat, lwid=lwid, lhei=lhei, labCol=NA, 	margins=c(3.5,7),cexCol=.7, scale="none"	)
+source("run.heatmap.r")
+run.heatmap.doucs()
+source(paste(Sys.getenv("MWAS.HEATMAP"),"lib","load.data.r",sep="/"))	source(paste(Sys.getenv("MWAS.HEATMAP"),"lib","mwas.heatmap.r",sep="/"))		source(paste(Sys.getenv("MWAS.HEATMAP"),"lib","factor.to.numeric.r",sep="/"))		source(paste(Sys.getenv("MWAS.HEATMAP"),"lib","get.next.kegg.r",sep="/"))		source(paste(Sys.getenv("MWAS.HEATMAP"),"lib","filter.pathways.r",sep="/"))	#
+	otufile<-"doucs.metagenome.txt"	mapfile<-"doucs.map.txt"	keep.pathways.file<-"doucs.pathways.heatmap.csv"	mapfile<- paste(Sys.getenv("MWAS.HEATMAP"),'/data/', mapfile, sep='')			otufile<- paste(Sys.getenv("MWAS.HEATMAP"),'/data/', otufile, sep='')			keep.pathways.file<-paste(Sys.getenv('MWAS.HEATMAP'),'/data/', keep.pathways.file, sep='')#
+	# read in data files		minOTUInSamples = .0001	ret <- load.data(otufile=otufile, mapfile=mapfile, minOTUInSamples=minOTUInSamples, normalize=TRUE)	otu <- ret$otu	map <- ret$map	kegg <- ret$kegg	if(length(kegg)>0){		# filter the kegg pathways and return the next level up for displaying		kegg <- filter.pathways(kegg, keep.pathways.file)		next.kegg <- get.next.kegg(kegg)		names(next.kegg) <- names(kegg)	}#
+	# some custom subsetting required for this data set#	map <- subset(map, !is.na(Diabetes) & Location=="fecal" & Week==6 & Sex %in% c("M") & Treatment %in% c("Control","PAT"))	otu <- otu[rownames(map),]#
+	# form all of the clustering and color parameters	cluster.var <- c("CaptiveWild")	color.list <- list()	# names must match columns exactly!	# this is a numeric, therefore colors will be shown as a gradient between the two colors here	color.list[["CaptiveWild"]] <- setNames(c('springgreen4','orange', 'firebrick1'), c("Wild", "Semi-Captive", "Captive"))	# this is a factor, number of colors = number of values	color.list[["Sex"]] <- setNames(c('pink','lightblue', 'gray'), c("Female","Male", "Unknown"))	# this is a factor, number of colors = number of values	color.list[["Population"]] <- setNames(c('antiquewhite','darkseagreen1','thistle','skyblue', 'khaki1','slategray2','palevioletred1'), 	c("EPRC", "Singapore Zoo", "Philadelphia Zoo", "UNKG",		"Right Scar Group",		"Left Scar Group",		"Long face group"		))
+color.var=names(color.list)
+kegg_pathways=next.kegg
+heatmap.title="Doucs, by Captive State"
+# combine cluster variable values to form groups to cluster samples by	if(length(cluster.var) > 1){		new.treatments <- apply(map[,cluster.var], 1, paste0, collapse=".")	} else {		new.treatments <- map[,cluster.var]	}	names(new.treatments) <- rownames(map)	#
+	# select features that are statistically different	ret <- test.otu.features(otu=otu[,names(kegg_pathways)], response=new.treatments)	diff.features <- ret$features		otu <- otu[,diff.features]	#
+	# use pearson's correlation for the distance function (bray-curtis has scaling issues)	distfun <- function(x) as.dist((1-cor(t(x)))/2)#
+	# do row and column clustering	col.labels <- cluster.columns(otu=otu, distfun=distfun, new.treatments=new.treatments)	ret <- cluster.rows(otu=as.matrix(t(otu))[,col.labels], distfun=distfun)	row.dendrogram <- ret$ddr 	row.labels <- ret$row.labels#
+	# create each of the colored bars and reordered to previous column clustering	col.colors <- create.color.bars(map[col.labels,], color.var, color.list)	# color row axis labels according to KEGG	kegg <- kegg_pathways[row.labels]	lookup <- c("orange","firebrick3","aquamarine3","steelblue3","black", "mediumpurple3")	names(lookup) <- sort(unique(kegg))#	lookup["Metabolism of Other Amino Acids"] <- lookup["Amino Acid Metabolism"] 	kegg.colors <- lookup[factor(kegg)] 	names(kegg.colors) <- names(kegg) #change these names so it's easier to reference later
+lwid = c(1.9,9,4) #col widths	lhei = c(1.1,.6,5.5,1.6) #row heights	lmat = rbind(c(3,4,0), c(0,1,0), c(0,2,0), c(0,5,0))	hm.colors <- colorRampPalette(c("blue","black","yellow"))(27)	main <- heatmap.title	# standardize each feature so it stands out more			otu <- apply(otu, 2, function(x) (x-mean(x))/sd(x))#
+	# make the heatmap	heatmap.3(as.matrix(t(otu))[,col.labels], Rowv = row.dendrogram, Colv = NA, dendrogram='none',	col = hm.colors, ColSideColors = col.colors, trace = "none", density.info = "none", rowAxisColors=kegg.colors,	main = main, key=TRUE, keysize=5, lmat=lmat, lwid=lwid, lhei=lhei, labCol=NA, 	margins=c(3.5,7),cexCol=.7, scale="none"	)# make the heatmap# 	heatmap.3(as.matrix(t(otu))[,col.labels], Rowv = row.dendrogram, Colv = NA, dendrogram='none',# 	col = hm.colors, ColSideColors = col.colors, trace = "none", density.info = "none", rowAxisColors=kegg.colors,# 	main = main, key=TRUE, keysize=5, lmat=lmat, lwid=lwid, lhei=lhei, labCol=NA, # 	margins=c(3.5,7),cexCol=.7, scale="none"# 	)	# add the legend for the colored bars	legend(x=.58, y=1.01,legend=unname(unlist(lapply(color.list, names))), 	fill=unlist(color.list),border=FALSE, bty="n", y.intersp = 0.8, cex=0.7, ncol=3, text.width = strwidth("1,000"))	# add the legend for the row axis colors	legend(x=.58, y=.1425,legend=names(lookup), 	fill=lookup, border=FALSE, bty="n", y.intersp = 0.8, cex=0.7, text.col="dimgray")
+source("run.heatmap.r")
+run.heatmap.doucs()
+source("run.heatmap.r")
+run.heatmap.doucs()
+source("run.heatmap.r")
+run.heatmap.doucs()
+source("run.heatmap.r")
+run.heatmap.doucs()
+source("run.heatmap.r")
+run.heatmap.doucs()
+source("run.heatmap.r")
+run.heatmap.doucs()
+source("run.heatmap.r")
+run.heatmap.doucs()
+source("run.heatmap.r")
+run.heatmap.doucs()
+source("run.heatmap.r")
+run.heatmap.doucs()
+source("run.heatmap.r")
+run.heatmap.doucs()
+source("run.heatmap.r")
+run.heatmap.doucs()
+source("run.heatmap.r")
+run.heatmap.doucs()
+source("run.heatmap.r")
+run.heatmap.doucs()
+dev.off()
+dev.off()
+dev.off()
+run.heatmap.doucs()
+run.heatmap.doucs()
+run.heatmap.doucs()
+source("run.heatmap.r")
+run.heatmap.doucs()
+run.heatmap.doucs()
+run.heatmap.doucs()
+source("run.heatmap.r")
+run.heatmap.doucs()
+map
+source("run.heatmap.r")
+run.heatmap.doucs()
+source("run.heatmap.r")
+run.heatmap.doucs()
+source("run.heatmap.r")
+run.heatmap.doucs()
+source("run.heatmap.r")
+run.heatmap.doucs()
+source("run.heatmap.r")
+run.heatmap.doucs()
+source("run.heatmap.r")
+run.heatmap.doucs()
+source("run.heatmap.r")
+run.heatmap.doucs()
+source("run.heatmap.r")
+run.heatmap.doucs()
+source("run.heatmap.r")
+run.heatmap.doucs()
+run.heatmap.doucs()
+run.heatmap.doucs()
+source("run.heatmap.r")
+run.heatmap.doucs()
+source("run.heatmap.r")
+run.heatmap.doucs()
+color.list[["CaptiveWild"]] <- setNames(c('springgreen4','orange', 'firebrick1'), c("Wild", "Semi-captive", "Captive"))
+x <- setNames(c('springgreen4','orange', 'firebrick1'), c("Wild", "Semi-captive", "Captive"))
+x
+class(x)
+y <- c("Wild", "Captive", "Captive", "Semi-captive")
+x[y]
+x <- setNames(as.factor(c('springgreen4','orange', 'firebrick1')), c("Wild", "Semi-captive", "Captive"))
+class(x)
+x
+x[y]
+source("run.heatmap.r")
+run.heatmap.doucs()
+source("run.heatmap.r")
+run.heatmap.doucs()
+run.heatmap.doucs()
+source("run.heatmap.r")
+run.heatmap.doucs()
+run.heatmap.doucs()
+run.heatmap.doucs()
+source(paste(Sys.getenv("MWAS.HEATMAP"),"lib","load.data.r",sep="/"))	source(paste(Sys.getenv("MWAS.HEATMAP"),"lib","mwas.heatmap.r",sep="/"))		source(paste(Sys.getenv("MWAS.HEATMAP"),"lib","factor.to.numeric.r",sep="/"))		source(paste(Sys.getenv("MWAS.HEATMAP"),"lib","get.next.kegg.r",sep="/"))		source(paste(Sys.getenv("MWAS.HEATMAP"),"lib","filter.pathways.r",sep="/"))	#
+	otufile<-"doucs.metagenome.txt"	mapfile<-"doucs.map.txt"	keep.pathways.file<-"doucs.pathways.heatmap.csv"	mapfile<- paste(Sys.getenv("MWAS.HEATMAP"),'/data/', mapfile, sep='')			otufile<- paste(Sys.getenv("MWAS.HEATMAP"),'/data/', otufile, sep='')			keep.pathways.file<-paste(Sys.getenv('MWAS.HEATMAP'),'/data/', keep.pathways.file, sep='')#
+	# read in data files		minOTUInSamples = .0001	ret <- load.data(otufile=otufile, mapfile=mapfile, minOTUInSamples=minOTUInSamples, normalize=TRUE)	otu <- ret$otu	map <- ret$map	kegg <- ret$kegg	if(length(kegg)>0){		# filter the kegg pathways and return the next level up for displaying		kegg <- filter.pathways(kegg, keep.pathways.file)		next.kegg <- get.next.kegg(kegg)		names(next.kegg) <- names(kegg)	}#
+	# some custom subsetting required for this data set#	map <- subset(map, !is.na(Diabetes) & Location=="fecal" & Week==6 & Sex %in% c("M") & Treatment %in% c("Control","PAT"))#	map <- subset(map, CaptiveWild %in% c("Wild", "Semi-captive"))#	map <- map[-which(map$Population=='Long face group'),]	otu <- otu[rownames(map),]	# form all of the clustering and color parameters	cluster.var <- c("CaptiveWild") #"Population" #	color.list <- list()	# names must match columns exactly!	# this is a numeric, therefore colors will be shown as a gradient between the two colors here	color.list[["CaptiveWild"]] <- setNames(c('springgreen4','orange', 'firebrick1'), c("Wild", "Semi-captive", "Captive"))	# this is a factor, number of colors = number of values	color.list[["Sex"]] <- setNames(c('pink','lightblue', 'gray'), c("Female","Male", "Unknown"))	# this is a factor, number of colors = number of values	color.list[["Population"]] <- setNames(c('antiquewhite','darkseagreen1','thistle','skyblue', 'khaki1','slategray2','palevioletred1'), 	c("EPRC", "Singapore Zoo", "Philly Zoo", "UNKG",		"Right Scar",		"Left Scar"		,"Long Face"		))
+color.var=names(color.list)
+kegg_pathways=next.kegg
+col.colors <- NULL	for(i in 1:length(color.var))	{		reordered <- map[,color.var[i]] print(reordered)		if(is.numeric(reordered)){			color.palette <- colorRampPalette(color.list[[i]])			num.breaks <- 20 #? for gradients			colors <- color.palette(num.breaks)[as.numeric(cut(reordered,breaks = num.breaks))]		} else if (is.factor(reordered)){				lookup <- color.list[[i]]				colors <- unname(lookup[reordered])print(lookup)print(colors)		}		col.colors <- cbind(col.colors, colors)			}	colnames(col.colors) <- color.var#
+	col.colorsprint(col.colors)
+col.colors
+color.var
+color.list
+map
+table(map$CaptiveWild)
+color.list$CaptiveWild[map$CaptiveWild]
+color.list[["CaptiveWild"]][map$CaptiveWild]
+run.heatmap.doucs()
+color.list$CaptiveWild[map$CaptiveWild]
+run.heatmap.doucs()
+run.heatmap.doucs()
+source("run.heatmap.r")
+run.heatmap.doucs()
+source("run.heatmap.r")
+run.heatmap.doucs()
+run.heatmap.doucs()
+source("run.heatmap.r")
+run.heatmap.doucs()
+source("run.heatmap.r")
+run.heatmap.doucs()
+source("run.heatmap.r")
+run.heatmap.doucs()
+source("run.heatmap.r")
+run.heatmap.doucs()
+source("run.heatmap.r")
+run.heatmap.doucs()
+source("run.heatmap.r")
+run.heatmap.doucs()
+source("run.heatmap.r")
+run.heatmap.doucs()
+run.heatmap.doucs()
+run.heatmap.doucs()
+run.heatmap.doucs()
+source("run.heatmap.r")
+run.heatmap.doucs()
+run.heatmap.doucs()
+run.heatmap.doucs()
+source("run.heatmap.r")
+run.heatmap.doucs()
+source("run.heatmap.r")
+run.heatmap.doucs()
+run.heatmap.doucs()
+source("run.heatmap.r")
+run.heatmap.doucs()
+source("run.heatmap.r")
+run.heatmap.doucs()

@@ -1,0 +1,5 @@
+In R, set MWAS.HEATMAP to the root of this current directory
+
+Two examples for usage, including input and output data are provided in /doc/examples. For a simple example showing a single color bar, see doucs example. For a more complex example showing multiple color bars and sample subletting, see diabetes example.
+
+NOTE: Heatmap formatting may require additional tweaking 
