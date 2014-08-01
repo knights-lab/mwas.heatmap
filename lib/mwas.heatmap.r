@@ -25,6 +25,7 @@ cluster.columns<-function(otu, distfun, new.treatments)
 		# to get correct indices along the combined dendrogram
 		col.labels <- c(col.labels, labels(d))
 	}
+	
 	col.labels
 }
 # hclusts the rows 
@@ -35,9 +36,11 @@ cluster.rows<-function(otu, distfun)
 	hcr <- hclust(distfun(otu))
 	ddr <- as.dendrogram(hcr)
 	ddr <- reorder(ddr, Rowv)
-	#rowInd <- order.dendrogram(ddr)
+	rowInd <- order.dendrogram(ddr)
+#		row.labels <- labels(ddr)[rowInd] #THIS IS CRITICAL?
 	row.labels <- labels(ddr)
-	
+#print(labels(ddr)[rowInd])
+
 	list(ddr=ddr, row.labels=row.labels)
 }
 
@@ -68,13 +71,14 @@ create.color.bars<-function(map, color.var, color.list)
 			num.breaks <- 20 #? for gradients
 			colors <- color.palette(num.breaks)[as.numeric(cut(reordered,breaks = num.breaks))]
 		} else {
-				colors <- unname(color.list[[color.var[i]]][reordered])
+
+				colors <- unname(color.list[[color.var[i]]][as.character(reordered)])
 		}
 		col.colors <- cbind(col.colors, colors)		
 	}
 	colnames(col.colors) <- color.var
-	
 	col.colors
+
 }
 
 # combines cluster variable values to create new groupings to cluster by
@@ -105,7 +109,9 @@ create.new.treatments<-function(map, cluster.var)
 # heatmap.title: title to display on the heatmap 
 # outputfile: heatmap output file name 
 mwas.heatmap <- function(otu, map, cluster.var, color.var, color.list, 
-kegg_pathways, heatmap.title="", outputfile)
+kegg_pathways, heatmap.title="", outputfile
+#TODO add some extra formatting parameters here
+)
 {
 	source(paste(Sys.getenv("MWAS.HEATMAP"),"lib","collapse-features.r",sep="/"))
 	source(paste(Sys.getenv("MWAS.HEATMAP"),"lib","heatmap.3.r",sep="/"))
@@ -143,12 +149,14 @@ kegg_pathways, heatmap.title="", outputfile)
 	kegg.colors <- NULL
 	if(use.kegg)
 	{
+		# TODO add more colors here
 		axis.colors <- c("orange","firebrick3","aquamarine3","steelblue3","black", "mediumpurple3")
 		kegg <- kegg_pathways[row.labels]
 		lookup <- axis.colors[1:length(unique(kegg))]
 		names(lookup) <- sort(unique(kegg))
-		lookup["Metabolism of Other Amino Acids"] <- lookup["Amino Acid Metabolism"] 
-		kegg.colors <- lookup[factor(kegg)] 
+		# diabetes only!
+		#lookup["Metabolism of Other Amino Acids"] <- lookup["Amino Acid Metabolism"] 
+		kegg.colors <- lookup[as.character(kegg)] 
 		names(kegg.colors) <- names(kegg) #change these names so it's easier to reference later
 	}	
 	
@@ -179,15 +187,22 @@ kegg_pathways, heatmap.title="", outputfile)
 	
 	# make the heatmap
 	pdf(file=outputfile, width=width, height=height)	
-	heatmap.3(as.matrix(t(otu))[,col.labels], Rowv = row.dendrogram, Colv = NA, dendrogram='none',
+
+	otu.for.heatmap <- as.matrix(t(otu))
+	if(!use.kegg){
+		rownames(otu.for.heatmap) <- shorten.taxonomy(rownames(otu.for.heatmap))
+	}
+	
+	heatmap.3(otu.for.heatmap[,col.labels], Rowv = row.dendrogram, Colv = NA, dendrogram='none',
 	col = hm.colors, ColSideColors = col.colors, trace = "none", density.info = "none", rowAxisColors=kegg.colors,
 	main = main, key=TRUE, keysize=5, lmat=lmat, lwid=lwid, lhei=lhei, labCol=NA, 
-	margins=margins,cexCol=.7, scale="none", labRow=shorten.taxonomy(row.labels)
+	margins=margins,cexCol=.7, scale="none"
 	)
 
 	# add the legend for the colored bars
 	legend(x=legend1.x, y=legend1.y,legend=unname(unlist(lapply(color.list, names))), 
-	fill=unlist(color.list),border=FALSE, bty="n", y.intersp = 0.8, cex=0.7, ncol=3, text.width = strwidth("1,000"))#c(0, .04, .08 )
+	fill=unlist(color.list),border=FALSE, bty="n", y.intersp = 0.8, cex=0.7, ncol=3, text.width=c(0, .04, .06 ) )#
+																						#= strwidth("1,000")
 
 	if(use.kegg) # add the legend for the row axis colors
 	{

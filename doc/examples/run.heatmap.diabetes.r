@@ -18,11 +18,11 @@ run.heatmap.diabetes <- function()
 	# form all of the clustering and color parameters
 	cluster.var <- c("Sex", "Treatment")
 	color.list <- list()
-	# names must match columns exactly!
+	# !! names and values must match mapping file exactly!
 	# this is a factor, number of colors = number of values
 	color.list[["Treatment"]] <- setNames(c('antiquewhite','darkseagreen1','thistle'), c("Control", "PAT", "STAT"))
 	# this is a factor, number of colors = number of values
-	color.list[["Sex"]] <- setNames(c('pink','lightblue'), c("Female","Male"))
+	color.list[["Sex"]] <- setNames(c('pink','lightblue'), c("F","M"))
 	# this is a numeric, therefore colors will be shown as a gradient between the two colors here
 	color.list[["Diabetes_week"]] <- setNames(c('indianred1','snow3'), c("early Diabetes", "late Diabetes"))
 

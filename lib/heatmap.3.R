@@ -343,7 +343,9 @@ heatmap.3 <- function(x,
 
 	#PJ hack to allow for different colors of row labels
 mtext(side = 4, text = labRow, at = iy, las = 2, line = 0.5, col = 
-rowAxisColors[labels(ddr)], cex = cexCol)
+rowAxisColors, cex = cexCol)
+# mtext(side = 4, text = labRow, at = iy, las = 2, line = 0.5, col = 
+# rowAxisColors[labels(ddr)], cex = cexCol)
 
 # 	rowcolors <- unique(rowAxisColors)
 # 	for(colorix in 1:length(rowcolors)){

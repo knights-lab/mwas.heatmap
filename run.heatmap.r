@@ -31,19 +31,24 @@ run.heatmap <- function(otufile, mapfile, keep.pathways.file="",
 		names(next.kegg) <- names(kegg)
 		kegg_pathways<-next.kegg
 	}
-	
+
 	# some custom subsetting TODO: can we make this generic?
 	#	map <- subset(map, !is.na(Diabetes) & Location=="fecal" & Week==6 & Sex %in% c("M") & Treatment %in% c("Control","PAT"))
 	#	map <- subset(map, CaptiveWild %in% c("Wild", "Semi-captive"))
 	#	map <- map[-which(map$Population=='Long face group'),]
 	# if constraints are present, subset the samples accordingly
-	for(i in 1:length(constraints))
+	if(length(constraints) > 0)
 	{
-		col.name <- names(constraints)[i]
-		# get only the rows that meet this constraint
-		map <- map[map[, col.name] %in% constraints[[i]],]
+		for(i in 1:length(constraints))
+		{
+			col.name <- names(constraints)[i]
+			# get only the rows that meet this constraint
+			map <- map[map[, col.name] %in% constraints[[i]],]
+		}
 	}
 	otu <- otu[rownames(map),]
+
+
 
 	# make the heatmap
 	mwas.heatmap(otu, map, cluster.var, color.var=names(color.list), color.list, kegg_pathways=kegg_pathways, heatmap.title=heatmap.title, outputfile=outputfile)
